@@ -1,16 +1,14 @@
 import Service from '../models/services.model.js';
 
-// Get all services
 export const getAllServices = async (req, res) => {
   try {
-    const services = await Service.find().sort({ createdAt: -1 });
+    const services = await Service.find().lean().sort({ createdAt: -1 });
     res.status(200).json(services);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// Add new service
 export const addService = async (req, res) => {
   const { title, image, active } = req.body;
 
@@ -21,13 +19,12 @@ export const addService = async (req, res) => {
   try {
     const newService = new Service({ title, image, active });
     await newService.save();
-    res.status(201).json(newService);
+    res.status(201).json(newService.toObject());
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// Update service
 export const updateService = async (req, res) => {
   const { id } = req.params;
   const { title, image, active } = req.body;
@@ -36,7 +33,7 @@ export const updateService = async (req, res) => {
     const updatedService = await Service.findByIdAndUpdate(
       id,
       { title, image, active },
-      { new: true }
+      { new: true, lean: true }
     );
 
     if (!updatedService) {
@@ -49,7 +46,6 @@ export const updateService = async (req, res) => {
   }
 };
 
-// Delete service
 export const deleteService = async (req, res) => {
   try {
     const deletedService = await Service.findByIdAndDelete(req.params.id);

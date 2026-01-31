@@ -3,7 +3,8 @@ import MenuItem from '../models/menuItems.model.js';
 
 export const getAllMenuItems = async (req, res) => {
   try {
-    const items = await MenuItem.find().sort({ createdAt: -1 });
+    const items = await MenuItem.find().lean().sort({ createdAt: -1 });
+
     res.status(200).json(items);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -30,7 +31,7 @@ export const addMenuItem = async (req, res) => {
       active
     });
     await newItem.save();
-    res.status(201).json(newItem);
+    res.status(201).json(newItem.toObject());
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -46,7 +47,7 @@ export const addBulkMenuItems = async (req, res) => {
 
   try {
     const newItems = await MenuItem.insertMany(items);
-    res.status(201).json(newItems);
+    res.status(201).json(newItems.map(item => item.toObject()));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -60,7 +61,7 @@ export const updateMenuItem = async (req, res) => {
     const updatedItem = await MenuItem.findByIdAndUpdate(
       id,
       req.body,
-      { new: true }
+      { new: true, lean: true }
     );
 
     if (!updatedItem) {

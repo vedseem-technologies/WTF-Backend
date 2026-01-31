@@ -3,7 +3,7 @@ import Category from '../models/categories.model.js';
 // Get all categories
 export const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 });
+    const categories = await Category.find().lean().sort({ createdAt: -1 });
     res.status(200).json(categories);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -21,7 +21,7 @@ export const addCategory = async (req, res) => {
   try {
     const newCategory = new Category({ title, image, active });
     await newCategory.save();
-    res.status(201).json(newCategory);
+    res.status(201).json(newCategory.toObject());
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -36,7 +36,7 @@ export const updateCategory = async (req, res) => {
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
       { title, image, active },
-      { new: true }
+      { new: true, lean: true }
     );
 
     if (!updatedCategory) {

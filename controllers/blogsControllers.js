@@ -2,7 +2,7 @@ import Blogs from "../models/blogs.model.js"
 
 const getBlogs = async (req, res) => {
   try {
-    const blogs = await Blogs.find().sort({ createdAt: -1 });
+    const blogs = await Blogs.find().lean().sort({ createdAt: -1 });
     res.status(200).json(blogs);
   }
   catch (error) {
@@ -19,7 +19,7 @@ const addBlogs = async (req, res) => {
 
   try {
     const newBlog = await Blogs.create({ title, date, image, description, blogType });
-    res.status(201).json(newBlog);
+    res.status(201).json(newBlog.toObject());
   } catch (error) {
     console.log(error, "Blogs didnt post");
     res.status(500).json({ message: error.message });
@@ -32,7 +32,7 @@ const editBlogs = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, date, image, description, blogType } = req.body;
-    const updatedBlog = await Blogs.findByIdAndUpdate(id, { title, date, image, description, blogType }, { new: true });
+    const updatedBlog = await Blogs.findByIdAndUpdate(id, { title, date, image, description, blogType }, { new: true, lean: true });
     res.status(200).json(updatedBlog);
   }
   catch (error) {

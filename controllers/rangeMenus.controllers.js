@@ -3,7 +3,7 @@ import RangeMenu from '../models/rangeMenus.model.js';
 // Get all range menus
 export const getAllRangeMenus = async (req, res) => {
   try {
-    const menus = await RangeMenu.find().sort({ createdAt: -1 });
+    const menus = await RangeMenu.find().lean().sort({ createdAt: -1 });
     res.status(200).json(menus);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -21,7 +21,7 @@ export const addRangeMenu = async (req, res) => {
   try {
     const newMenu = new RangeMenu({ name, image, price, rating, range });
     await newMenu.save();
-    res.status(201).json(newMenu);
+    res.status(201).json(newMenu.toObject());
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -36,7 +36,7 @@ export const updateRangeMenu = async (req, res) => {
     const updatedMenu = await RangeMenu.findByIdAndUpdate(
       id,
       { name, image, price, rating, range },
-      { new: true }
+      { new: true, lean: true }
     );
 
     if (!updatedMenu) {
