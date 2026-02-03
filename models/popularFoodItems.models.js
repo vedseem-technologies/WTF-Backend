@@ -10,7 +10,7 @@ const foodSchema = new mongoose.Schema({
     required: true,
   },
   image: {
-    type: String, // Base64 string for now
+    type: String, 
     required: true,
   },
   description: {

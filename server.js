@@ -17,7 +17,8 @@ import rangeMenusRoutes from './routes/rangeMenus.Routes.js';
 import menuItemsRoutes from './routes/menuItems.Routes.js';
 import packageMenuSelectionRoutes from './routes/packageMenuSelection.routes.js';
 import menuSelectionRoutes from './routes/menuSelection.routes.js';
-
+import helmet from 'helmet';
+import { globalLimiter } from './middleware/rateLimit.js';
 
 dotenv.config();
 
@@ -38,8 +39,7 @@ app.use(cors({
   credentials: true
 }));
 
-import helmet from 'helmet';
-import { globalLimiter } from './middleware/rateLimit.js';
+
 
 app.use(helmet());
 app.use(globalLimiter);

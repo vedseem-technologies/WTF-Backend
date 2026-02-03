@@ -2,7 +2,14 @@ import Food from '../models/popularFoodItems.models.js';
 
 export const getAllFoodItems = async (req, res) => {
   try {
-    const items = await Food.find().lean().sort({ createdAt: -1 });
+    const limit = parseInt(req.query.limit);
+    const query = Food.find().lean().sort({ createdAt: -1 });
+
+    if (!isNaN(limit) && limit > 0) {
+      query.limit(limit);
+    }
+
+    const items = await query;
     res.status(200).json(items);
   } catch (error) {
     res.status(500).json({ message: error.message });
