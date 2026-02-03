@@ -4,6 +4,7 @@ const menuItemSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    trim: true,
   },
   image: {
     type: String,
@@ -13,14 +14,22 @@ const menuItemSchema = new mongoose.Schema({
     type: String,
     enum: ['Veg', 'Non-Veg'],
     default: 'Veg',
+    index: true,
   },
   category: {
     type: Number,
     required: true,
+    index: true,
   },
   active: {
     type: Boolean,
     default: true,
+    index: true,
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true,
   },
   people: {
     type: Number,
@@ -43,6 +52,8 @@ const menuItemSchema = new mongoose.Schema({
   timestamps: true,
   versionKey: false
 });
+
+menuItemSchema.index({ category: 1, type: 1, active: 1, isDeleted: 1 });
 
 const MenuItem = mongoose.model('MenuItem', menuItemSchema);
 
