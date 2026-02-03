@@ -11,7 +11,7 @@ export const getAllPackages = async (req, res) => {
 };
 
 export const addPackage = async (req, res) => {
-  const { packageName, price, numberOfPeople, image, isVeg, occasionId, selectedItems } = req.body;
+  const { packageName, price, numberOfPeople, image, isVeg, occasionId } = req.body;
 
   if (!packageName || !price || !numberOfPeople || !image || !occasionId) {
     return res.status(400).json({ message: 'Package name, price, number of people, image, and occasionId are required' });
@@ -22,7 +22,7 @@ export const addPackage = async (req, res) => {
   }
 
   try {
-    const newPackage = new Package({ packageName, price, numberOfPeople, image, isVeg, occasionId, selectedItems });
+    const newPackage = new Package({ packageName, price, numberOfPeople, image, isVeg, occasionId });
     await newPackage.save();
     res.status(201).json(newPackage.toObject());
   } catch (error) {
@@ -33,12 +33,12 @@ export const addPackage = async (req, res) => {
 // Update package
 export const updatePackage = async (req, res) => {
   const { id } = req.params;
-  const { packageName, price, numberOfPeople, image, isVeg, occasionId, selectedItems } = req.body;
+  const { packageName, price, numberOfPeople, image, isVeg, occasionId } = req.body;
 
   try {
     const updatedPackage = await Package.findByIdAndUpdate(
       id,
-      { packageName, price, numberOfPeople, image, isVeg, occasionId, selectedItems },
+      { packageName, price, numberOfPeople, image, isVeg, occasionId },
       { new: true, lean: true }
     );
 

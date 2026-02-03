@@ -27,10 +27,6 @@ const packageSchema = new mongoose.Schema({
     ref: 'Occasion',
     required: true,
   },
-  selectedItems: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'MenuItem'
-  }],
 }, {
   timestamps: true,
   versionKey: false
