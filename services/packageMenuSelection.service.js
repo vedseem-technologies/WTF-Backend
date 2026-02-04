@@ -27,6 +27,10 @@ export const upsertMenuSelection = async (packageId, data) => {
 export const getSelectionByPackageId = async (packageId) => {
   try {
     const selection = await PackageMenuSelection.findOne({ packageId })
+      .populate('starters')
+      .populate('mainCourses')
+      .populate('desserts')
+      .populate('breadRice')
       .lean();
 
     // Return empty structure if not found (standard data contract)

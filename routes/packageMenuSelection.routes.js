@@ -1,4 +1,4 @@
-// -------- OCCASSIONS --------
+// -------- OCCASSIONS  SERVICES  CATEGORIES  --------
 import express from 'express';
 import { saveMenuSelection, getMenuSelection } from '../controllers/packageMenuSelection.controller.js';
 

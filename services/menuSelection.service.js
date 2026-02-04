@@ -10,6 +10,10 @@ import MenuItem from '../models/menuItems.model.js';
 export const getMenuSelection = async (entityType, entityId) => {
   try {
     const selection = await MenuSelection.findOne({ entityType, entityId })
+      .populate('starters')
+      .populate('mainCourses')
+      .populate('desserts')
+      .populate('breadRice')
       .lean();
 
     // Return empty structure if not found (Contract)

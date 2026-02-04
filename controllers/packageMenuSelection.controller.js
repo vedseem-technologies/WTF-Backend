@@ -1,4 +1,4 @@
-// -------- OCCASSIONS --------
+// -------- OCCASSIONS SERVICES CATEGORIES --------
 import * as selectionService from '../services/packageMenuSelection.service.js';
 
 export const saveMenuSelection = async (req, res) => {
