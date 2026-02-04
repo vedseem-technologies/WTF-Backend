@@ -15,6 +15,7 @@ const rangeMenuSchema = new mongoose.Schema({
   },
   range: {
     type: String,
+    enum: ["Paneer Range", "Fast Food Range", "Chinese Range"],
     required: true,
   },
 }, {
