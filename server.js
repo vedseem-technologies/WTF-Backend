@@ -23,6 +23,7 @@ import categoryRoutes from './routes/category.routes.js';
 import serviceRoutes from './routes/service.routes.js';
 import serviceConfigurationRoutes from './routes/serviceConfiguration.routes.js';
 import serviceSelectionRoutes from './routes/serviceSelection.routes.js';
+import orderRoutes from './routes/order.routes.js';
 import helmet from 'helmet';
 import { globalLimiter } from './middleware/rateLimit.js';
 
@@ -74,6 +75,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/service-config', serviceConfigurationRoutes);
 app.use('/api/service-selection', serviceSelectionRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
