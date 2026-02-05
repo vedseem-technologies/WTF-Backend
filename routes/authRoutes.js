@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
+import { generateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -65,7 +66,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
 };
 
 router.post('/signup', async (req, res) => {
-  const { firstName, lastName, email, password, addresses } = req.body;
+  const { firstName, lastName, email, phone, password, addresses } = req.body;
   const filteredAddresses = addresses ? addresses.filter(addr => addr.trim() !== '') : [];
 
   try {
@@ -80,18 +81,15 @@ router.post('/signup', async (req, res) => {
       firstName,
       lastName,
       email,
+      phone,
       password: hashedPassword,
       addresses: filteredAddresses,
-      isEmailVerified: true, 
+      isEmailVerified: true,
     });
 
     await newUser.save();
 
-    const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = generateToken(newUser);
 
     res.status(201).json({
       message: 'User created successfully',
@@ -101,6 +99,7 @@ router.post('/signup', async (req, res) => {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
+        phone: newUser.phone,
         addresses: newUser.addresses,
         isEmailVerified: newUser.isEmailVerified,
       },
@@ -137,11 +136,7 @@ router.post('/verify-otp', async (req, res) => {
     user.otpExpiry = undefined;
     await user.save();
 
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = generateToken(user);
 
     res.status(200).json({
       message: 'Email verified successfully',
@@ -199,23 +194,13 @@ router.post('/login', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: 'Email not verified. Please verify your email first',
-        userId: user._id,
-        needsVerification: true,
-      });
-    }
+
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = generateToken(user);
 
     res.status(200).json({
       message: 'Login successful',
@@ -225,6 +210,7 @@ router.post('/login', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        phone: user.phone,
         isEmailVerified: user.isEmailVerified,
       },
     });

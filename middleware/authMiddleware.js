@@ -10,7 +10,7 @@ export const verifyToken = (req, res, next) => {
 
     const decodedToken = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'your-secret-key'
+      process.env.JWT_SECRET
     );
 
     req.userData = { userId: decodedToken.userId };
@@ -18,4 +18,12 @@ export const verifyToken = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({ message: 'Authentication failed: Invalid token' });
   }
+};
+
+export const generateToken = (userId, email) => {
+  return jwt.sign(
+    { userId, email },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+  );
 };

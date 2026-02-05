@@ -26,6 +26,22 @@ const menuSelectionSchema = new mongoose.Schema({
   breadRice: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'MenuItem'
+  }],
+  unselectedStarters: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
+  }],
+  unselectedMainCourses: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
+  }],
+  unselectedDesserts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
+  }],
+  unselectedBreadRice: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
   }]
 }, {
   timestamps: true,

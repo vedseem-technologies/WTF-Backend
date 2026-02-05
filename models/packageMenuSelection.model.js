@@ -28,8 +28,7 @@ const packageMenuSelectionSchema = new mongoose.Schema({
   versionKey: false
 });
 
-// Index to ensure efficient lookups by packageId
-packageMenuSelectionSchema.index({ packageId: 1 });
+
 
 const PackageMenuSelection = mongoose.model('PackageMenuSelection', packageMenuSelectionSchema);
 

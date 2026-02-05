@@ -28,12 +28,8 @@ const createAdmin = async () => {
         });
 
         await admin.save();
-        console.log('✅ Admin created successfully!');
-        console.log(`Email: ${email}`);
-        console.log(`Password: ${password}`);
         process.exit(0);
     } catch (error) {
-        console.error('❌ Error creating admin:', error);
         process.exit(1);
     }
 };

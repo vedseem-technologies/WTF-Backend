@@ -17,7 +17,8 @@ const menuItemSchema = new mongoose.Schema({
     index: true,
   },
   category: {
-    type: Number,
+    type: String,
+    enum: ['Starter', 'Main Course', 'Rice & Bread', 'Dessert'],
     required: true,
     index: true,
   },

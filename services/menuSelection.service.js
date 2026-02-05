@@ -14,6 +14,10 @@ export const getMenuSelection = async (entityType, entityId) => {
       .populate('mainCourses')
       .populate('desserts')
       .populate('breadRice')
+      .populate('unselectedStarters')
+      .populate('unselectedMainCourses')
+      .populate('unselectedDesserts')
+      .populate('unselectedBreadRice')
       .lean();
 
     // Return empty structure if not found (Contract)
@@ -24,7 +28,11 @@ export const getMenuSelection = async (entityType, entityId) => {
         starters: [],
         mainCourses: [],
         desserts: [],
-        breadRice: []
+        breadRice: [],
+        unselectedStarters: [],
+        unselectedMainCourses: [],
+        unselectedDesserts: [],
+        unselectedBreadRice: []
       };
     }
     return selection;
@@ -50,7 +58,11 @@ export const upsertMenuSelection = async (entityType, entityId, data) => {
       starters: uniqueIds(data.starters),
       mainCourses: uniqueIds(data.mainCourses),
       desserts: uniqueIds(data.desserts),
-      breadRice: uniqueIds(data.breadRice)
+      breadRice: uniqueIds(data.breadRice),
+      unselectedStarters: uniqueIds(data.unselectedStarters),
+      unselectedMainCourses: uniqueIds(data.unselectedMainCourses),
+      unselectedDesserts: uniqueIds(data.unselectedDesserts),
+      unselectedBreadRice: uniqueIds(data.unselectedBreadRice)
     };
 
     const selection = await MenuSelection.findOneAndUpdate(
