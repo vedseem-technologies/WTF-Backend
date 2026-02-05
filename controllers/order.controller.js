@@ -1,8 +1,8 @@
-const Order = require('../models/order.model');
-const Counter = require('../models/counter.model');
+import Order from '../models/order.model.js';
+import Counter from '../models/counter.model.js';
 
 // Generate unique order ID in format: WTF-YYYYMM-XXXX
-const generateOrderId = async () => {
+export const generateOrderId = async () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -16,7 +16,7 @@ const generateOrderId = async () => {
 };
 
 // Create new order
-exports.createOrder = async (req, res) => {
+export const createOrder = async (req, res) => {
   try {
     const {
       userId,
@@ -75,7 +75,7 @@ exports.createOrder = async (req, res) => {
 };
 
 // Get order by ID
-exports.getOrder = async (req, res) => {
+export const getOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -104,7 +104,7 @@ exports.getOrder = async (req, res) => {
 };
 
 // Get all orders for a user
-exports.getUserOrders = async (req, res) => {
+export const getUserOrders = async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -128,7 +128,7 @@ exports.getUserOrders = async (req, res) => {
 };
 
 // Update order status
-exports.updateOrderStatus = async (req, res) => {
+export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, paymentStatus } = req.body;

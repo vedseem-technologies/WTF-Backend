@@ -1,17 +1,14 @@
-const express = require('express');
+import express from 'express';
+import {updateOrderStatus, createOrder, getOrder, getUserOrders} from "../controllers/order.controller.js"
 const router = express.Router();
-const orderController = require('../controllers/order.controller');
 
-// Create new order
-router.post('/', orderController.createOrder);
+router.post('/', createOrder);
 
-// Get order by order ID
-router.get('/:orderId', orderController.getOrder);
+router.get('/:orderId', getOrder);
 
-// Get all orders for a user
-router.get('/user/:userId', orderController.getUserOrders);
+router.get('/user/:userId', getUserOrders);
 
-// Update order status
-router.patch('/:orderId/status', orderController.updateOrderStatus);
+router.patch('/:orderId/status', updateOrderStatus);
 
-module.exports = router;
+export default router;
+

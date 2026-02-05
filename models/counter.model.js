@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Counter schema for auto-incrementing order numbers
 const counterSchema = new mongoose.Schema({
@@ -15,4 +15,4 @@ counterSchema.statics.getNextSequence = async function (sequenceName) {
   return counter.sequence;
 };
 
-module.exports = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
+export default mongoose.models.Counter || mongoose.model('Counter', counterSchema);
