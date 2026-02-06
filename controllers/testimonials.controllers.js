@@ -1,9 +1,16 @@
 import Testimonial from "../models/testimonials.model.js";
 
+import { paginate } from '../utils/pagination.js';
+
 const getTestimonials = async (req, res) => {
   try {
-    const testimonials = await Testimonial.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(testimonials);
+    const { cursor, limit, direction, search } = req.query;
+    const query = {};
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+    const result = await paginate(Testimonial, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching testimonials:", error);
     res.status(500).json({ message: "Failed to fetch testimonials" });

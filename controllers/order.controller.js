@@ -1,21 +1,18 @@
 import Order from '../models/order.model.js';
 import Counter from '../models/counter.model.js';
 
-// Generate unique order ID in format: WTF-YYYYMM-XXXX
 export const generateOrderId = async () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const period = `${year}${month}`;
 
-  // Get next sequence number for this period
   const sequence = await Counter.getNextSequence(`order-${period}`);
   const sequenceStr = String(sequence).padStart(4, '0');
 
   return `WTF-${period}-${sequenceStr}`;
 };
 
-// Create new order
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -30,7 +27,6 @@ export const createOrder = async (req, res) => {
       notes
     } = req.body;
 
-    // Validate required fields
     if (!entityType || !entityId || !items || !totalAmount) {
       return res.status(400).json({
         success: false,
@@ -38,10 +34,8 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Generate unique order ID
     const orderId = await generateOrderId();
 
-    // Create order
     const order = new Order({
       orderId,
       userId: userId || null,
@@ -74,7 +68,6 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Get order by ID
 export const getOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -103,19 +96,75 @@ export const getOrder = async (req, res) => {
   }
 };
 
-// Get all orders for a user
+import { paginate } from '../utils/pagination.js';
+import User from '../models/User.js';
+
+export const getAllOrders = async (req, res) => {
+  try {
+    const { cursor, limit, direction, search, status } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      if (search.toUpperCase().startsWith('WTF-')) {
+        query.orderId = { $regex: search, $options: 'i' };
+      } else {
+        // Search by user name
+        const users = await User.find({
+          $or: [
+            { firstName: searchRegex },
+            { lastName: searchRegex }
+          ]
+        }).select('_id');
+        const userIds = users.map(user => user._id);
+
+        query.$or = [
+          { userId: { $in: userIds } },
+          { orderId: { $regex: search, $options: 'i' } }
+        ];
+      }
+    }
+
+    const result = await paginate(Order, query, {
+      cursor,
+      limit,
+      direction,
+      sort: { createdAt: -1 },
+      populate: { path: 'userId', select: 'firstName lastName email phone' }
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch all orders',
+      error: error.message
+    });
+  }
+};
+
 export const getUserOrders = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { cursor, limit, direction } = req.query;
 
-    const orders = await Order.find({ userId })
-      .sort({ createdAt: -1 })
-      .limit(50);
+    const result = await paginate(Order, { userId }, {
+      cursor,
+      limit,
+      direction,
+      sort: { createdAt: -1 }
+    });
 
     res.status(200).json({
       success: true,
-      data: orders,
-      count: orders.length
+      data: result.data,
+      pageInfo: result.pageInfo,
+      count: result.data.length // Keeping count for compatibility if needed, though usually total count is separate
     });
   } catch (error) {
     console.error('Error fetching user orders:', error);
@@ -127,7 +176,6 @@ export const getUserOrders = async (req, res) => {
   }
 };
 
-// Update order status
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;

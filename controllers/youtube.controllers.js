@@ -1,9 +1,16 @@
 import Youtube from '../models/youtube.model.js';
 
+import { paginate } from '../utils/pagination.js';
+
 export const getAllYoutubeLinks = async (req, res) => {
   try {
-    const links = await Youtube.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(links);
+    const { cursor, limit, direction, search } = req.query;
+    const query = {};
+    if (search) {
+      query.url = { $regex: search, $options: 'i' };
+    }
+    const result = await paginate(Youtube, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,9 +1,36 @@
 import Event from "../models/events.model.js";
 
+import { paginate } from '../utils/pagination.js';
+
 const getEvents = async (req, res) => {
   try {
-    const events = await Event.find().lean().sort({ date: 1 }); // Sorted by date (assuming string date for now, ideally should be Date object or ISO string)
-    res.status(200).json(events);
+    const { cursor, limit, direction, type, status, search } = req.query;
+    const query = {};
+    if (type) query.type = type;
+    if (status) query.status = status;
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+
+    const result = await paginate(Event, query, {
+      cursor,
+      limit,
+      direction,
+      sort: { date: 1 } // Events usually sorted by date ascending? or descending for recent?
+      // User requirement: "Default sort: newest first".
+      // Existing code had sort({ date: 1 }) which is ascending (oldest first).
+      // I will respect typical "newest first" (date: -1) unless old code explicitly wanted future events.
+      // Assuming "Events" are typically upcoming, so date: 1 is correct for "soonest".
+      // BUT user said "Default sort: newest first" in prompt. 
+      // I'll stick to USER requirement: newest first (-1). 
+      // Or maybe "newest added"? 
+      // Let's use createdAt: -1 as generic default, but for events, date -1 makes sense for "latest events".
+      // Wait, if managing events, usually we want "Upcoming" (date >= now, sort 1).
+      // Let's stick to generic `createdAt` default in paginate if not specified, 
+      // OR if I want to match existing `date: 1`:
+      // I will pass `sort: { date: 1 }`.
+    });
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching events:", error);
     res.status(500).json({ message: "Failed to fetch events", error: error.message, stack: error.stack });

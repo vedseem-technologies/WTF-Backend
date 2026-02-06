@@ -1,9 +1,16 @@
 import Carousel from '../models/carousel.model.js';
 
+import { paginate } from '../utils/pagination.js';
+
 export const getAllCarouselImages = async (req, res) => {
   try {
-    const images = await Carousel.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(images);
+    const { cursor, limit, direction, search } = req.query;
+    const query = {};
+    if (search) {
+      query.image = { $regex: search, $options: 'i' };
+    }
+    const result = await paginate(Carousel, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -18,7 +25,6 @@ export const addCarouselImage = async (req, res) => {
 
   try {
     const newImage = new Carousel({ image });
-    await newImage.save();
     res.status(201).json(newImage.toObject());
   } catch (error) {
     res.status(400).json({ message: error.message });

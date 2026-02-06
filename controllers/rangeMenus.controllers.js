@@ -1,10 +1,18 @@
 import RangeMenu from '../models/rangeMenus.model.js';
 
 // Get all range menus
+import { paginate } from '../utils/pagination.js';
+
+// Get all range menus
 export const getAllRangeMenus = async (req, res) => {
   try {
-    const menus = await RangeMenu.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(menus);
+    const { cursor, limit, direction, search } = req.query;
+    const query = {};
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+    const result = await paginate(RangeMenu, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,9 +1,26 @@
 import Occasion from '../models/occasions.model.js';
 
+import { paginate } from '../utils/pagination.js';
+
 export const getAllOccasions = async (req, res) => {
   try {
-    const occasions = await Occasion.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(occasions);
+    const { cursor, limit, direction, active, search } = req.query;
+    const query = {};
+    if (active !== undefined) {
+      query.active = active === 'true';
+    }
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+
+    const result = await paginate(Occasion, query, {
+      limit,
+      cursor,
+      direction,
+      sort: { createdAt: -1 } // Explicit sort for consistency
+    });
+
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

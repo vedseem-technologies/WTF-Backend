@@ -1,9 +1,18 @@
 import Blogs from "../models/blogs.model.js"
 
+import { paginate } from '../utils/pagination.js';
+
 const getBlogs = async (req, res) => {
   try {
-    const blogs = await Blogs.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(blogs);
+    const { cursor, limit, direction, blogType, search } = req.query;
+    const query = {};
+    if (blogType) query.blogType = blogType;
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+
+    const result = await paginate(Blogs, query, { cursor, limit, direction });
+    res.status(200).json(result);
   }
   catch (error) {
     console.log(error);

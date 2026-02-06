@@ -1,37 +1,21 @@
 import MenuItem from '../models/menuItems.model.js';
 
 
+import { paginate } from '../utils/pagination.js';
+
 export const getAllMenuItems = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-
-    const { category, type, active } = req.query;
+    const { cursor, limit, direction, category, type, active } = req.query;
     const query = { isDeleted: false };
 
     if (category) query.category = category;
     if (type) query.type = type;
-    if (active) query.active = active === 'true';
+    if (active !== undefined) {
+      query.active = active === 'true';
+    }
 
-    const [items, total] = await Promise.all([
-      MenuItem.find(query)
-        .lean()
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      MenuItem.countDocuments(query)
-    ]);
-
-    res.status(200).json({
-      data: items,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
-      }
-    });
+    const result = await paginate(MenuItem, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

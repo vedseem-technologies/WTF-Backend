@@ -1,9 +1,20 @@
 import Service from '../models/service.model.js';
 
+import { paginate } from '../utils/pagination.js';
+
 export const getAllServices = async (req, res) => {
   try {
-    const services = await Service.find().lean().sort({ createdAt: -1 });
-    res.status(200).json(services);
+    const { cursor, limit, direction, active, search } = req.query;
+    const query = {};
+    if (active !== undefined) {
+      query.active = active === 'true';
+    }
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+
+    const result = await paginate(Service, query, { cursor, limit, direction });
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
