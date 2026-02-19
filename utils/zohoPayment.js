@@ -18,9 +18,9 @@ export const createZohoPaymentLink = async (orderData) => {
       currency_code: "INR",
       description: `Order #${orderData.orderId} - ${orderData.bookingDetails?.date || ''} ${orderData.bookingDetails?.time || ''} - ${orderData.address || ''}`.substring(0, 200), // Ensure max length
       customer: {
-        name: orderData.userId?.firstName || orderData.bookingDetails?.name || "Guest",
-        email: orderData.userId?.email || orderData.bookingDetails?.email || "guest@example.com",
-        phone: orderData.userId?.phone || orderData.bookingDetails?.phone || ""
+        name: orderData.userId?.firstName || orderData.bookingDetails?.name,
+        email: orderData.userId?.email || orderData.bookingDetails?.email,
+        phone: orderData.userId?.phone || orderData.bookingDetails?.phone
       },
       return_url: `${process.env.NEXT_PUBLIC_WEBSITE_URL}/order-success?id=${orderData.orderId}`,
       notify_url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/orders/payment/verify`,

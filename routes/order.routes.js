@@ -5,7 +5,9 @@ const router = express.Router();
 
 router.get('/', getAllOrders);
 
-router.post('/', createOrder);
+import { verifyToken } from '../middleware/authMiddleware.js';
+
+router.post('/', verifyToken, createOrder);
 
 router.get('/:orderId', getOrder);
 
