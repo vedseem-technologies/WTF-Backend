@@ -284,21 +284,34 @@ export const verifyPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // 2. Reject Mock IDs (Strict)
-    if (paymentId && (paymentId.toUpperCase().startsWith('MOCK-'))) {
-      console.warn(`Blocking MOCK payment attempt for order ${orderId}`);
-      return res.status(400).json({ success: false, message: 'Mock payments not allowed' });
+    // 2. Handle Mock Payments
+    const isMockPayment = paymentId && paymentId.toUpperCase().startsWith('MOCK-');
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isMockPayment) {
+      if (isProduction) {
+        // PRODUCTION: Always reject mock payments
+        console.warn(`🚫 BLOCKED mock payment attempt for order ${orderId}`);
+        return res.status(400).json({ success: false, message: 'Mock payments not allowed in production' });
+      }
+      // DEVELOPMENT: Auto-confirm mock payments for testing
+      console.log(`✅ [DEV] Auto-confirming mock payment for order ${orderId}`);
+      order.status = 'confirmed';
+      order.paymentStatus = 'paid';
+      order.zohoPaymentId = paymentId;
+      await order.save();
+      return res.status(200).json({ success: true, message: 'Mock payment confirmed (dev mode)' });
     }
 
-    // 3. Verify Zoho Signature (Uncommented and fixed)
-    if (!process.env.ZOHO_PAYMENT_SECRET) {
-      console.warn("WARNING: ZOHO_PAYMENT_SECRET is missing in .env. Signature verification skipped.");
+    // 3. Verify Zoho Webhook Signature
+    if (!process.env.ZOHO_WEBHOOK_SECRET) {
+      console.warn("WARNING: ZOHO_WEBHOOK_SECRET is missing in .env. Signature verification skipped.");
     }
 
     const signature = req.headers['x-zoho-signature'];
-    if (signature && process.env.ZOHO_PAYMENT_SECRET) {
-      const calculatedSignature = crypto.createHmac('sha256', process.env.ZOHO_PAYMENT_SECRET)
-        .update(JSON.stringify(req.body)) // Payload must be raw string usually
+    if (signature && process.env.ZOHO_WEBHOOK_SECRET) {
+      const calculatedSignature = crypto.createHmac('sha256', process.env.ZOHO_WEBHOOK_SECRET)
+        .update(JSON.stringify(req.body))
         .digest('hex');
 
       if (signature !== calculatedSignature) {

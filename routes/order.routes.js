@@ -15,8 +15,8 @@ router.get('/user/:userId', getUserOrders);
 
 router.patch('/:orderId/status', updateOrderStatus);
 
-router.post('/payment/initiate', initiatePayment);
-router.post('/payment/verify', verifyPayment);
+router.post('/payment/initiate', verifyToken, initiatePayment);
+router.post('/payment/verify', verifyPayment); // No auth — Zoho webhook hits this directly
 
 export default router;
 

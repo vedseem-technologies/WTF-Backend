@@ -26,7 +26,7 @@ export const createOrderSchema = z.object({
     nonVegGuests: z.number().optional()
   }, { required_error: "Booking details are required" }),
   totalAmount: z.number({ required_error: "Total amount is required" }).min(0),
-  paymentMethod: z.enum(['zoho'], { required_error: "Payment method is required" }).optional(),
+  paymentMethod: z.enum(['zoho', 'cod'], { required_error: "Payment method is required" }).optional(),
   address: z.string({
     required_error: "Delivery address is required"
   }).min(5, "Address must be at least 5 characters long"),
