@@ -1,6 +1,9 @@
 import Order from '../models/order.model.js';
 import Counter from '../models/counter.model.js';
 import { createOrderSchema } from '../validators/order.validation.js';
+import { paginate } from '../utils/pagination.js';
+import User from '../models/User.js';
+import { createZohoPaymentLink, verifyZohoPayment } from '../utils/zohoPayment.js';
 import crypto from 'crypto';
 
 export const generateOrderId = async () => {
@@ -17,7 +20,6 @@ export const generateOrderId = async () => {
 
 export const createOrder = async (req, res) => {
   try {
-    // 1. Zod Validation
     const validation = createOrderSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -37,16 +39,15 @@ export const createOrder = async (req, res) => {
       paymentMethod,
       address,
       notes
-    } = validation.data; // Use validated data
+    } = validation.data;
 
-    // 2. secure userId from Token (Middleware)
-    const userId = req.userData.userId; // Extracted from JWT
+    const userId = req.userData.userId;
 
     const orderId = await generateOrderId();
 
     const order = new Order({
       orderId,
-      userId, // Trusted userId
+      userId,
       entityType,
       entityId,
       items,
@@ -104,9 +105,6 @@ export const getOrder = async (req, res) => {
   }
 };
 
-import { paginate } from '../utils/pagination.js';
-import User from '../models/User.js';
-
 export const getAllOrders = async (req, res) => {
   try {
     const { cursor, limit, direction, search, status } = req.query;
@@ -121,7 +119,6 @@ export const getAllOrders = async (req, res) => {
       if (search.toUpperCase().startsWith('WTF-')) {
         query.orderId = { $regex: search, $options: 'i' };
       } else {
-        // Search by user name
         const users = await User.find({
           $or: [
             { firstName: searchRegex },
@@ -172,7 +169,7 @@ export const getUserOrders = async (req, res) => {
       success: true,
       data: result.data,
       pageInfo: result.pageInfo,
-      count: result.data.length // Keeping count for compatibility if needed, though usually total count is separate
+      count: result.data.length
     });
   } catch (error) {
     console.error('Error fetching user orders:', error);
@@ -218,27 +215,24 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-import { createZohoPaymentLink } from '../utils/zohoPayment.js';
-
 export const initiatePayment = async (req, res) => {
   try {
     const { orderId } = req.body;
 
-    const order = await Order.findOne({ orderId }).populate('userId');
+    const order = await Order.findOne({ orderId }).populate('userId', 'firstName lastName email phone');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Check if already paid
     if (order.paymentStatus === 'paid') {
       return res.status(400).json({ success: false, message: 'Order is already paid.' });
     }
 
-    // Call Zoho Utility
+    // Create Zoho Payment Link
     const paymentResponse = await createZohoPaymentLink(order);
 
-    // Update Order with initial payment info
+    // Update Order with payment info
     order.zohoTransactionId = paymentResponse.transaction_id;
     order.paymentGatewayResponse = paymentResponse;
     await order.save();
@@ -263,7 +257,6 @@ export const initiatePayment = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
   try {
-    // Handle both direct frontend call and Zoho Webhook payload
     let { orderId, paymentId, status } = req.body;
 
     // Map Zoho Webhook fields if present
@@ -273,41 +266,36 @@ export const verifyPayment = async (req, res) => {
     if (!paymentId && req.body.payment_id) {
       paymentId = req.body.payment_id;
     }
-
     if (!status && req.body.status) {
       status = req.body.status;
     }
 
-    // 1. Fetch Order First (Fix ReferenceError)
     const order = await Order.findOne({ orderId });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // 2. Reject Mock IDs (Strict)
-    if (paymentId && (paymentId.toUpperCase().startsWith('MOCK-'))) {
-      console.warn(`Blocking MOCK payment attempt for order ${orderId}`);
-      return res.status(400).json({ success: false, message: 'Mock payments not allowed' });
-    }
-
-    // 3. Verify Zoho Signature (Uncommented and fixed)
-    if (!process.env.ZOHO_PAYMENT_SECRET) {
-      console.warn("WARNING: ZOHO_PAYMENT_SECRET is missing in .env. Signature verification skipped.");
-    }
-
+    // Verify Zoho Webhook Signature (if present)
+    const webhookSecret = process.env.ZOHO_WEBHOOK_SECRET;
     const signature = req.headers['x-zoho-signature'];
-    if (signature && process.env.ZOHO_PAYMENT_SECRET) {
-      const calculatedSignature = crypto.createHmac('sha256', process.env.ZOHO_PAYMENT_SECRET)
-        .update(JSON.stringify(req.body)) // Payload must be raw string usually
+    if (signature && webhookSecret) {
+      const calculatedSignature = crypto.createHmac('sha256', webhookSecret)
+        .update(JSON.stringify(req.body))
         .digest('hex');
 
       if (signature !== calculatedSignature) {
-        console.error('Invalid Zoho Signature');
+        console.error('Invalid Zoho Webhook Signature');
         return res.status(401).json({ success: false, message: 'Invalid Signature' });
       }
     }
 
-    console.log("Verifying Payment for:", { orderId, paymentId, status });
+    // Verify directly with Zoho API if we have a transaction ID
+    if (order.zohoTransactionId) {
+      const zohoVerification = await verifyZohoPayment(order.zohoTransactionId);
+      if (zohoVerification.verified && zohoVerification.status === 'paid') {
+        status = 'paid';
+      }
+    }
 
     const successStatuses = ['success', 'paid', 'credit', 'captured'];
     const isSuccess = successStatuses.includes(status?.toLowerCase());
@@ -320,15 +308,20 @@ export const verifyPayment = async (req, res) => {
 
       order.status = 'confirmed';
       order.paymentStatus = 'paid';
-      order.zohoPaymentId = paymentId;
-      await order.save();
-      console.log(`Order ${orderId} confirmed via Webhook`);
-    } else {
-      console.log(`Order ${orderId} payment status update: ${status}`);
+      order.zohoPaymentId = paymentId || null;
 
+      // Track which payment method was used (from webhook data)
+      if (req.body.payment_method) {
+        order.chosenPaymentMethod = req.body.payment_method;
+      }
+
+      await order.save();
+      console.log(`Order ${orderId} payment confirmed`);
+    } else {
       if (status === 'failed') {
         order.paymentStatus = 'failed';
         await order.save();
+        console.log(`Order ${orderId} payment failed`);
       }
     }
 

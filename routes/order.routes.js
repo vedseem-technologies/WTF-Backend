@@ -15,7 +15,7 @@ router.get('/user/:userId', getUserOrders);
 
 router.patch('/:orderId/status', updateOrderStatus);
 
-router.post('/payment/initiate', initiatePayment);
+router.post('/payment/initiate', verifyToken, initiatePayment);
 router.post('/payment/verify', verifyPayment);
 
 export default router;

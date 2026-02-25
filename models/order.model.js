@@ -74,7 +74,12 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  notes: String
+  notes: String,
+  chosenPaymentMethod: {
+    type: String,
+    enum: ['upi', 'card', 'netbanking', 'wallet', 'emi', null],
+    default: null
+  }
 }, {
   timestamps: true
 });

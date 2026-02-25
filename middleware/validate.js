@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-/**
- * @param {z.ZodSchema} schema 
- */
 export const validateDefault = (schema) => (req, res, next) => {
   try {
     schema.parse(req.body);

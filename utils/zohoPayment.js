@@ -1,85 +1,112 @@
 import axios from 'axios';
+import { getAccessToken, invalidateToken } from '../services/zohoAuth.js';
 
-const ZOHO_API_KEY = process.env.ZOHO_PAYMENT_API_KEY;
-const ZOHO_SECRET_ID = process.env.ZOHO_PAYMENT_SECRET_ID;
-const ZOHO_API_URL = process.env.ZOHO_PAYMENT_API_URL;
+const ZOHO_API_URL = process.env.ZOHO_PAYMENT_API_URL || 'https://payments.zoho.in/api/v1';
 
+/**
+ * Create a Zoho Payment Link for an order.
+ * Calls Zoho Payments API v1 to generate a hosted payment page
+ * supporting UPI, Credit Cards, Netbanking, Wallets.
+ */
 export const createZohoPaymentLink = async (orderData) => {
   try {
-    if (!ZOHO_API_KEY || !ZOHO_SECRET_ID) {
-      console.warn("⚠️ Zoho Credentials missing in .env. Returning Mock Link.");
-      return getMockResponse(orderData);
-    }
-    // Construct the payload for creating a payment link
-    // Updated for Hosted Payment Page with specific methods
+    const accessToken = await getAccessToken();
+
     const payload = {
-      reference_id: orderData.orderId,
       amount: orderData.totalAmount || 0,
-      currency_code: "INR",
-      description: `Order #${orderData.orderId} - ${orderData.bookingDetails?.date || ''} ${orderData.bookingDetails?.time || ''} - ${orderData.address || ''}`.substring(0, 200), // Ensure max length
-      customer: {
-        name: orderData.userId?.firstName || orderData.bookingDetails?.name,
-        email: orderData.userId?.email || orderData.bookingDetails?.email,
-        phone: orderData.userId?.phone || orderData.bookingDetails?.phone
-      },
-      return_url: `${process.env.NEXT_PUBLIC_WEBSITE_URL}/order-success?id=${orderData.orderId}`,
-      notify_url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/orders/payment/verify`,
-      payment_methods: {
-        upi: true,
-        card: true,
-        netbanking: true,
-        wallet: true,
-        emi: true
-      }
+      currency: 'INR',
+      description: `Order #${orderData.orderId} - WTF Foods Catering`.substring(0, 200),
+      reference_id: orderData.orderId,
+      email: orderData.userId?.email || orderData.bookingDetails?.email || '',
+      phone: orderData.userId?.phone || orderData.bookingDetails?.phone || '',
+      return_url: `${process.env.NEXT_PUBLIC_WEBSITE_URL}/order-success?id=${orderData.orderId}&status=success`,
     };
-
-    // Make the API call
-    console.log(`Zoho Payment: Creating Link at ${ZOHO_API_URL} with Key ${ZOHO_API_KEY?.substring(0, 5)}...`);
-
-    // Check if key looks like an OAuth token (starts with 1000.) or Authtoken (hex)
-    const authPrefix = ZOHO_API_KEY.startsWith('1000.') ? 'Zoho-oauthtoken' : 'Zoho-oauthtoken';
 
     const response = await axios.post(`${ZOHO_API_URL}/payment_links`, payload, {
       headers: {
-        'Authorization': `${authPrefix} ${ZOHO_API_KEY}`,
-        'X-Secret-Id': ZOHO_SECRET_ID,
+        'Authorization': `Zoho-oauthtoken ${accessToken}`,
         'Content-Type': 'application/json'
       }
     });
 
-    if (response.data && response.data.payment_link) {
+    const data = response.data;
+
+    if (data && data.payment_link_id) {
       return {
         success: true,
-        payment_link: response.data.payment_link,
-        transaction_id: response.data.payment_link_id || orderData.orderId
+        payment_link: data.url,
+        transaction_id: data.payment_link_id
       };
-    } else {
-      throw new Error('Invalid response from Zoho API');
     }
 
-  } catch (error) {
-    console.error('Zoho Payment API Error:', error.response?.data || error.message);
+    throw new Error('Invalid response from Zoho: missing payment_link_id');
 
-    return getMockResponse(orderData);
+  } catch (error) {
+    // If 401 (token expired), invalidate and retry once
+    if (error.response?.status === 401) {
+      invalidateToken();
+
+      try {
+        const freshToken = await getAccessToken();
+
+        const retryPayload = {
+          amount: orderData.totalAmount || 0,
+          currency: 'INR',
+          description: `Order #${orderData.orderId} - WTF Foods Catering`.substring(0, 200),
+          reference_id: orderData.orderId,
+          email: orderData.userId?.email || orderData.bookingDetails?.email || '',
+          phone: orderData.userId?.phone || orderData.bookingDetails?.phone || '',
+          return_url: `${process.env.NEXT_PUBLIC_WEBSITE_URL}/order-success?id=${orderData.orderId}&status=success`,
+        };
+
+        const retryResponse = await axios.post(`${ZOHO_API_URL}/payment_links`, retryPayload, {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${freshToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const retryData = retryResponse.data;
+        if (retryData && retryData.payment_link_id) {
+          return {
+            success: true,
+            payment_link: retryData.url,
+            transaction_id: retryData.payment_link_id
+          };
+        }
+      } catch (retryError) {
+        console.error('Zoho Payment retry failed:', retryError.response?.data || retryError.message);
+      }
+    }
+
+    console.error('Zoho Payment API Error:', error.response?.data || error.message);
+    throw new Error(`Payment link creation failed: ${error.response?.data?.message || error.message}`);
   }
 };
 
-const getMockResponse = (orderData) => {
-  const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL;
-  return {
-    success: true,
-    payment_link: `${websiteUrl}/order-success?id=${orderData.orderId}&mock_payment=true`,
-    transaction_id: `ZOHO-MOCK-${Date.now()}`
-  };
-};
-
-
-export const verifyZohoPayment = async (paymentId) => {
+/**
+ * Verify a payment status from Zoho API
+ */
+export const verifyZohoPayment = async (paymentLinkId) => {
   try {
+    const accessToken = await getAccessToken();
 
-    return { status: 'confirmed' };
+    const response = await axios.get(`${ZOHO_API_URL}/payment_links/${paymentLinkId}`, {
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = response.data;
+    return {
+      status: data.status || 'unknown',
+      amount_paid: data.amount_paid,
+      verified: true
+    };
+
   } catch (error) {
-    console.error('Error verifying payment:', error);
-    return { status: 'failed' };
+    console.error('Zoho Payment Verification Error:', error.response?.data || error.message);
+    return { status: 'failed', verified: false };
   }
 };
