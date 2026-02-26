@@ -1,9 +1,10 @@
 import express from 'express';
-import { updateOrderStatus, createOrder, getOrder, getUserOrders, getAllOrders, initiatePayment, verifyPayment } from "../controllers/order.controller.js"
+import { updateOrderStatus, createOrder, getOrder, getUserOrders, getAllOrders, initiatePayment, verifyPayment, getDashboardStats } from "../controllers/order.controller.js"
 const router = express.Router();
 
 
 router.get('/', getAllOrders);
+router.get('/stats', getDashboardStats);
 
 import { verifyToken } from '../middleware/authMiddleware.js';
 

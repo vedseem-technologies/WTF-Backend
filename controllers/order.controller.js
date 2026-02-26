@@ -3,8 +3,65 @@ import Counter from '../models/counter.model.js';
 import { createOrderSchema } from '../validators/order.validation.js';
 import { paginate } from '../utils/pagination.js';
 import User from '../models/User.js';
+import MenuItem from '../models/menuItems.model.js';
+import Occasion from '../models/occasions.model.js';
 import { createZohoPaymentLink, verifyZohoPayment } from '../utils/zohoPayment.js';
 import crypto from 'crypto';
+
+export const getDashboardStats = async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    const [orderStats, activeMenuItems, activeOccasions, recentOrders] = await Promise.all([
+      Order.aggregate([
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            today: [
+              { $match: { createdAt: { $gte: startOfToday, $lt: endOfToday } } },
+              { $count: 'count' }
+            ],
+            pending: [
+              { $match: { status: 'pending' } },
+              { $count: 'count' }
+            ],
+            revenue: [
+              { $match: { status: { $nin: ['cancelled'] } } },
+              { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+            ]
+          }
+        }
+      ]),
+      MenuItem.countDocuments({ active: true }),
+      Occasion.countDocuments({ active: true }),
+      Order.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('userId', 'firstName lastName email phone')
+        .lean()
+    ]);
+
+    const stats = orderStats[0];
+    res.status(200).json({
+      success: true,
+      data: {
+        totalOrders: stats.total[0]?.count ?? 0,
+        todayOrders: stats.today[0]?.count ?? 0,
+        pendingOrders: stats.pending[0]?.count ?? 0,
+        totalRevenue: stats.revenue[0]?.total ?? 0,
+        activeMenuItems,
+        activeOccasions,
+        recentOrders
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats', error: error.message });
+  }
+};
+
 
 export const generateOrderId = async () => {
   const now = new Date();

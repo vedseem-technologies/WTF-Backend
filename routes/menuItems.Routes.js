@@ -4,7 +4,8 @@ import {
   addMenuItem,
   addBulkMenuItems,
   updateMenuItem,
-  deleteMenuItem
+  deleteMenuItem,
+  toggleMenuItemActive
 } from '../controllers/menuItems.controllers.js';
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.post('/', addMenuItem);
 router.post('/bulk', addBulkMenuItems);
 router.put('/:id', updateMenuItem);
 router.delete('/:id', deleteMenuItem);
+router.put('/:id/toggle-active', toggleMenuItemActive);
 
 export default router;

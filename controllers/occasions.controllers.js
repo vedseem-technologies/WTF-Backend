@@ -76,3 +76,24 @@ export const deleteOccasion = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const toggleOccasionActive = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const occasion = await Occasion.findById(id);
+    if (!occasion) {
+      return res.status(404).json({ message: 'Occasion not found' });
+    }
+
+    const updatedOccasion = await Occasion.findByIdAndUpdate(
+      id,
+      { active: !occasion.active },
+      { new: true, lean: true }
+    );
+
+    res.status(200).json(updatedOccasion);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
