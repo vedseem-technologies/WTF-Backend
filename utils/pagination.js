@@ -1,9 +1,10 @@
+import mongoose from 'mongoose';
+
 export const paginate = async (model, query = {}, options = {}) => {
   const { limit = 10, cursor = null, direction = 'next', sort = { createdAt: -1 } } = options;
   const limits = parseInt(limit, 10);
 
   // Ensure consistent sorting
-  // If sorting by createdAt, we need a secondary sort field (_id) for tie-breaking
   const sortInfo = Object.entries(sort)[0] || ['createdAt', -1];
   const [sortField, sortOrder] = sortInfo;
   const isDesc = sortOrder === -1 || sortOrder === 'desc';
@@ -13,54 +14,83 @@ export const paginate = async (model, query = {}, options = {}) => {
 
   if (cursor) {
     try {
-      const decodedCursor = Buffer.from(cursor, 'base64').toString('ascii');
-      const [cursorValue, cursorId] = decodedCursor.split('_');
+      const decodedCursor = Buffer.from(cursor, 'base64').toString('utf8');
+      const lastUnderscore = decodedCursor.lastIndexOf('_');
 
-      const operator = direction === 'next'
-        ? (isDesc ? '$lt' : '$gt')
-        : (isDesc ? '$gt' : '$lt');
+      if (lastUnderscore !== -1) {
+        const cursorValueStr = decodedCursor.substring(0, lastUnderscore);
+        const cursorIdStr = decodedCursor.substring(lastUnderscore + 1);
 
-      const secondaryOperator = direction === 'next'
-        ? (isDesc ? '$lt' : '$gt')
-        : (isDesc ? '$gt' : '$lt');
+        // Cast ID correctly
+        let cursorId;
+        try {
+          cursorId = new mongoose.Types.ObjectId(cursorIdStr);
+        } catch (idErr) {
+          console.warn('Invalid ID in cursor:', cursorIdStr);
+          throw idErr;
+        }
 
-      if (sortField === '_id') {
-        cursorQuery._id = { [operator]: cursorValue };
-      } else {
-        // Compound cursor logic: (field < val) OR (field == val AND _id < id)
-        // For 'prev' direction with DESC sort, it becomes (field > val) OR (field == val AND _id > id)
-        cursorQuery.$or = [
-          { [sortField]: { [operator]: cursorValue } },
-          {
-            [sortField]: cursorValue,
-            _id: { [secondaryOperator]: cursorId }
-          }
-        ];
+        const operator = direction === 'next'
+          ? (isDesc ? '$lt' : '$gt')
+          : (isDesc ? '$gt' : '$lt');
+
+        const secondaryOperator = direction === 'next'
+          ? (isDesc ? '$lt' : '$gt')
+          : (isDesc ? '$gt' : '$lt');
+
+        let val = cursorValueStr;
+        // If sorting by a date field, ensure we compare as Date objects
+        if (sortField === 'createdAt' || sortField === 'updatedAt') {
+          val = new Date(cursorValueStr);
+        }
+
+        const paginationFilter = sortField === '_id'
+          ? { _id: { [operator]: cursorId } }
+          : {
+            $or: [
+              { [sortField]: { [operator]: val } },
+              {
+                [sortField]: val,
+                _id: { [secondaryOperator]: cursorId }
+              }
+            ]
+          };
+
+        // Combine with existing query using $and to avoid overwriting existing $or filters
+        cursorQuery = { $and: [query, paginationFilter] };
       }
     } catch (e) {
-      // Invalid cursor, ignore or throw? For robustness, let's ignore and plain fetch (or could return empty)
-      console.warn('Invalid cursor:', e);
+      console.warn('Invalid or incompatible cursor:', e.message);
+      // Fallback: just return first page if cursor is mangled
+      cursorQuery = { ...query };
     }
   }
 
+  // Determine actual DB sort order
+  const dbSortOrder = direction === 'next' ? sortOrder : (isDesc ? 1 : -1);
+
   // Fetch data + 1 to check if there is a next page
   const data = await model.find(cursorQuery)
-    .sort({ [sortField]: sortOrder, _id: sortOrder }) // Always tie-break with _id
+    .sort({ [sortField]: dbSortOrder, _id: dbSortOrder })
     .limit(limits + 1)
     .lean();
 
   const hasMore = data.length > limits;
-  const results = hasMore ? data.slice(0, limits) : data;
+  let results = hasMore ? data.slice(0, limits) : data;
 
-  // Calculate generic Next/Prev Cursors
+  // If we fetched reverse (prev), flip back to requested order
+  if (direction === 'prev') {
+    results.reverse();
+  }
+
+  // Calculate Next/Prev Cursors
   let nextCursor = null;
   let prevCursor = null;
 
   if (results.length > 0) {
-    const lastItem = results[results.length - 1];
     const firstItem = results[0];
+    const lastItem = results[results.length - 1];
 
-    // Helper to encode cursor
     const encodeCursor = (doc) => {
       const val = doc[sortField] instanceof Date ? doc[sortField].toISOString() : doc[sortField];
       return Buffer.from(`${val}_${doc._id}`).toString('base64');
@@ -75,10 +105,10 @@ export const paginate = async (model, query = {}, options = {}) => {
 
   if (direction === 'next') {
     hasNextPage = hasMore;
-    hasPrevPage = !!cursor; // If we have a cursor in 'next', we have history
+    hasPrevPage = !!cursor;
   } else if (direction === 'prev') {
-    hasNextPage = true; // If we went back, we definitely have a 'next' (where we came from)
-    hasPrevPage = hasMore; // If we found more items backwards, we have even deeper history
+    hasNextPage = true;
+    hasPrevPage = hasMore;
   }
 
   return {
