@@ -291,8 +291,11 @@ export const verifyPayment = async (req, res) => {
 
     // Verify directly with Zoho API if we have a transaction ID
     if (order.zohoTransactionId) {
+      console.log(`Verifying payment for Order ${orderId} with Zoho Transaction ID: ${order.zohoTransactionId}`);
       const zohoVerification = await verifyZohoPayment(order.zohoTransactionId);
-      if (zohoVerification.verified && zohoVerification.status === 'paid') {
+      console.log(`Zoho verification Result for ${orderId}:`, JSON.stringify(zohoVerification, null, 2));
+
+      if (zohoVerification.verified && (zohoVerification.status === 'paid' || zohoVerification.status === 'success' || zohoVerification.status === 'captured')) {
         status = 'paid';
       }
     }
@@ -316,16 +319,21 @@ export const verifyPayment = async (req, res) => {
       }
 
       await order.save();
-      console.log(`Order ${orderId} payment confirmed`);
+      console.log(`Order ${orderId} payment confirmed and saved.`);
     } else {
+      console.warn(`Payment for Order ${orderId} not successful. Status received: ${status}`);
       if (status === 'failed') {
         order.paymentStatus = 'failed';
         await order.save();
-        console.log(`Order ${orderId} payment failed`);
+        console.log(`Order ${orderId} payment marked as failed`);
       }
     }
 
-    res.status(200).json({ success: true, message: 'Payment verified' });
+    res.status(200).json({
+      success: true,
+      message: 'Payment verification processed',
+      status: order.paymentStatus
+    });
 
   } catch (error) {
     console.error('Error verifying payment:', error);
