@@ -99,3 +99,21 @@ export const deleteMenuItem = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const toggleMenuItemActive = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const item = await MenuItem.findById(id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    item.active = !item.active;
+    await item.save();
+
+    res.status(200).json(item.toObject());
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -70,3 +70,24 @@ export const deleteService = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const toggleServiceActive = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const service = await Service.findById(id);
+    if (!service) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    const updatedService = await Service.findByIdAndUpdate(
+      id,
+      { active: !service.active },
+      { new: true, lean: true }
+    );
+
+    res.status(200).json(updatedService);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
