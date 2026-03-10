@@ -23,6 +23,7 @@ const createAdmin = async () => {
             lastName: 'User',
             email: email,
             password: hashedPassword,
+            role: 'admin',
             isEmailVerified: true
         });
 
